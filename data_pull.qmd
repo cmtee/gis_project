@@ -1,0 +1,150 @@
+---
+title: "filter_data"
+format: html
+editor: visual
+---
+
+```{r}
+library(tidyverse)
+library(tidycensus)
+library(sf)
+library(janitor)
+```
+
+# Read In
+
+```{r}
+cdc <- read_csv("data/raw/PLACES__Census_Tract_Data__GIS_Friendly_Format___2022_release_20250513.csv")
+```
+
+
+```{r}
+snap_raw <- sf::read_sf("data/raw/SNAP_Retailer_Location_data.geojson")
+redline_to_2010_tract_raw <- sf::read_sf("data/raw/MIv3Areas_2010TractCrosswalk.geojson") # 2010
+#redline <- sf::read_sf("data/raw/mappinginequality.gpkg")
+```
+
+```{r}
+# all food things
+food_county <- read_csv("data/raw/FoodEnvironmentAtlas/StateAndCountyData.csv")
+food_vars <- read_csv("data/raw/FoodEnvironmentAtlas/VariableList.csv")
+```
+
+# Analyze
+
+```{r}
+head(cdc)
+```
+
+```{r}
+cdc_phx_de_chi <- cdc %>%
+  filter((CountyName == "Maricopa" & StateAbbr == "AZ") | (CountyName == "Cook" & StateAbbr == "IL") | (CountyName == "Wayne" & StateAbbr == "MI")) %>%
+  select(StateAbbr, CountyName, CountyFIPS, TractFIPS, TotalPopulation, contains("BPHIGH"), contains("ACCESS2"), contains("CHD"),  contains("DIABETE"), contains("GHLTH"), contains("HIGHCHO"), contains("OBESITY")) %>%
+  select(!contains("95CI"))
+
+cdc_phx_de_chi %>%
+  write_csv(., "data/phx_detroit_chi_health_vars.csv")
+```
+
+```{r}
+cdc_phx_de_chi_long <- cdc_phx_de_chi %>%
+  pivot_longer(cols = c(6:12), names_to = "variable", values_to = "values") %>%
+  mutate(col_description = case_when(
+    variable == "BPHIGH_CrudePrev" ~ "Model-based estimate for crude prevalence of high blood pressure among adults aged >=18 years, 2019", 
+    variable == "ACCESS2_CrudePrev" ~ "Model-based estimate for crude prevalence of current lack of health insurance among adults aged 18-64 years, 2020",
+    variable == "CHD_CrudePrev" ~ "Model-based estimate for crude prevalence of coronary heart disease among adults aged >=18 years, 2020",
+    variable == "DIABETES_CrudePrev" ~ "Model-based estimate for crude prevalence of diagnosed diabetes among adults aged >=18 years, 2020",
+    variable == "GHLTH_CrudePrev" ~ "Model-based estimate for crude prevalence of fair or poor health among adults aged >=18 years, 2020", 
+    variable == "HIGHCHOL_CrudePrev" ~ "Model-based estimate for crude prevalence of high cholesterol among adults aged >=18 years who have been screened in the past 5 years, 2019",
+    variable == "OBESITY_CrudePrev" ~ "Model-based estimate for crude prevalence of obesity among adults aged >=18 years, 2020", 
+    TRUE ~ NA
+  )) %>%
+  rename("TotalPopulation_2010_Census" = "TotalPopulation")
+
+cdc_phx_de_chi_long %>%
+  write_csv(., "data/phx_detroit_chi_health_vars__long_notidealformapping.csv")
+```
+
+```{r}
+cdc_phx_de_chi_long %>%
+  select(variable, col_description) %>%
+  distinct()
+```
+
+
+
+## SNAP --> Evan
+
+```{r}
+head(snap_raw)
+```
+
+## Redlining --> DONE
+
+```{r}
+head(redline_to_2010_tract_raw)
+```
+
+
+```{r}
+redlining_our_cities <- redline_to_2010_tract_raw %>%
+  filter((city == "Chicago" & state == "IL") | (city == "Phoenix" & state == "AZ") | (city == "Detroit" & state == "MI")) 
+
+redlining_our_cities
+
+```
+
+```{r}
+st_write(redlining_our_cities, "data/phx_detr_chi_redlining_tracts.geojson", driver = "geojson")
+```
+
+  
+
+## Food Atlas -- > DONE
+
+```{r}
+de_chi_phx <- food_county %>%
+  left_join(food_vars) %>%
+  filter((County == "Maricopa" & State == "AZ") | (County == "Cook" & State == "IL") | (County == "Wayne" & State == "MI"))
+
+
+
+write_csv(de_chi_phx, "data/food_atlas_de_chi_phx_long_data_and_defs.csv")
+```
+
+
+```{r}
+food_pivot <- food_county %>%
+  filter((County == "Maricopa" & State == "AZ") | (County == "Cook" & State == "IL") | (County == "Wayne" & State == "MI")) %>%
+  group_by(FIPS, State, County) %>%
+  pivot_wider(values_from = Value, names_from = Variable_Code) 
+  
+
+
+
+write_csv(food_pivot, "data/food_atlas_de_chi_phx_wide_data.csv")
+```
+
+
+```{r}
+as.data.frame(colnames(food_pivot)) %>%
+  filter(grepl("FOOD", `colnames(food_pivot)`))
+```
+
+```{r}
+food_pivot %>% 
+  arrange(-`PCH_FFRPTH_11_16`) %>%
+  ungroup() %>%
+  mutate(rank_ff_dif = rank(PCH_FFRPTH_11_16)) %>%
+  select(FIPS, State, County, `PCH_FFRPTH_11_16`, rank_ff_dif, METRO13, contains("FF"), everything()) %>%
+  #filter(County == "Cook" & State == "IL") %>%
+  filter(rank_ff_dif <= 2192+50 & rank_ff_dif >= 2192-50) %>%
+  filter(METRO13 == 1)
+```
+
+
+
+
+
+## CDC
+
