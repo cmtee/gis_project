@@ -41,6 +41,8 @@ phx_demo <- st_make_valid(phx_demo)
 
 # Filter Data
 
+## CDC
+
 ```{r}
 #head(cdc)
 ```
@@ -80,11 +82,27 @@ phx_demo <- st_make_valid(phx_demo)
 #  distinct()
 ```
 
-## SNAP --\> Evan
+
+## SNAP
 
 ```{r}
-#head(snap_raw)
+head(snap_raw)
 ```
+
+```{r}
+snap_raw %>%
+  count(Store_Type)
+```
+
+```{r}
+snap_filtered <- snap_raw %>%
+  filter(Store_Type == "Supermarket" | Store_Type == "Super Store" | Store_Type == "Grocery Store") %>%
+  filter((City == "Chicago" & State == "IL") | (City == "Detroit" & State == "MI") | (City == "Phoenix" & State == "AZ"))
+
+snap_filtered %>%
+  write_csv(., "data/snap_filtered.csv")
+```
+
 
 ## Redlining --\> DONE
 
@@ -143,8 +161,6 @@ phx_demo <- st_make_valid(phx_demo)
 #  filter(rank_ff_dif <= 2192+50 & rank_ff_dif >= 2192-50) %>%
 #  filter(METRO13 == 1)
 ```
-
-## CDC
 
 
 # Post Filter Read-In
