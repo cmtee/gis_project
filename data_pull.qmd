@@ -32,7 +32,6 @@ phx_demo <- read_sf("data/phoenix_demos.geojson")
 phx_demo <- st_make_valid(phx_demo)
 ```
 
-
 ```{r}
 # all food things
 #food_county <- read_csv("data/raw/FoodEnvironmentAtlas/StateAndCountyData.csv")
@@ -82,7 +81,6 @@ phx_demo <- st_make_valid(phx_demo)
 #  distinct()
 ```
 
-
 ## SNAP
 
 ```{r}
@@ -102,7 +100,6 @@ snap_filtered <- snap_raw %>%
 snap_filtered %>%
   write_csv(., "data/snap_filtered.csv")
 ```
-
 
 ## Redlining --\> DONE
 
@@ -162,7 +159,6 @@ snap_filtered %>%
 #  filter(METRO13 == 1)
 ```
 
-
 # Post Filter Read-In
 
 ```{r}
@@ -180,7 +176,6 @@ head(health_tracts)
 head(redlined_phx_tracts)
 ```
 
-
 ## Join RedLined Tracts to Census Tracts
 
 ### Phx
@@ -197,11 +192,10 @@ phx_redlined_demo_inner
 ```
 
 ### Det
+
 ```{r}
 redlined_det_tracts_valid <- st_make_valid(redlined_det_tracts)
 ```
-
-
 
 ```{r}
 det_redlined_demo <-st_join(det_demo, redlined_det_tracts_valid, join = st_intersects)
@@ -213,14 +207,12 @@ det_redlined_demo_inner <- det_redlined_demo %>%
 
 det_redlined_demo_inner
 ```
+
 3711
-
-
 
 ```{r}
 st_write(det_redlined_demo_inner, "data/GOOD_det_redlined_demo_inner.geojson", driver = 'geojson')
 ```
-
 
 ### Chi
 
@@ -228,13 +220,13 @@ st_write(det_redlined_demo_inner, "data/GOOD_det_redlined_demo_inner.geojson", d
 redlined_chi_tracts_valid <- st_make_valid(redlined_chi_tracts)
 ```
 
-
 ```{r}
 chi_redlined_demo <-st_join(chi_demo, redlined_chi_tracts_valid, join = st_intersects)
 
 chi_redlined_demo_inner <- chi_redlined_demo %>%
   filter(!is.na(grade)) %>%
-  distinct()
+  distinct() %>%
+  inner_join(health_tracts, by = c("GEOID10" = "TractFIPS"))
 
 chi_redlined_demo_inner
 ```
@@ -244,4 +236,5 @@ chi_redlined_demo_inner
 ```{r}
 st_write(chi_redlined_demo_inner, "data/GOOD_chi_redlined_demo_inner.geojson", driver = 'geojson')
 ```
+
 
